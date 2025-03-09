@@ -1,0 +1,208 @@
+---
+title: "Proyecto final."
+author: "Dana Garcia Romero, Monserrat Flores Manzano, Leonardo Daniel Rosas Rios"
+date: "2023-05-09"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introducción:
+Si bien la Programación Lineal nació para resolver problemas logísticos y militares, a lo largo de la historia ha tenido importantes aplicaciones en diversos campos del que hacer humano, desde el social y estratégico hasta el industrial y económico. La programación lineal es una rama de la programación matemática cuyo objetivo principal es el de maximizar o minimizar (optimizar) una función lineal, llamada función objetivo, de modo que las variables de la función estén sujetas a una serie de restricciones expresadas mediante un sistema de ecuaciones o inecuaciones también lineales.
+
+Es importante considerar que lo que es programación lineal en investigación de operaciones está compuesta por dos elementos fundamentales: la función objetivo y las restricciones estructurales y de no negatividad. La función objetivo es aquella función que se optimiza, ya sea maximizando o minimizando su resultado. Las restricciones son aquellas condiciones que deben cumplirse al optimizar la función objetivo. Puede tratarse de ecuaciones o inecuaciones algebraicas.
+
+Las restricciones se denominan restricciones de no negatividad, también conocidas como restricciones del modelo. Esto indica que las variables de decisión solo pueden tener valores no negativos, es decir positivos o nulos. El conjunto de valores que satisfacen todas las restricciones se denomina región factible y se clasifica como el espacio de solución, o todos los puntos posibles de un problema de optimización que satisfacen las restricciones del problema.
+
+El éxito de esta herramienta se debe a varias razones, la simplicidad de su formulación le permite describir un gran número de situaciones del mundo real en diferentes campos, al igual que la eficiencia con la que el algoritmo símplex encuentra una solución en un número finito de pasos. 
+Hoy en día, se ha convertido en una herramienta popular que ahorra miles o incluso millones de recursos para muchas empresas y negocios, incluidas las industrias medianas en varios países del mundo.
+
+# Reseña Historica:
+## 1939-
+L. Kantorovitch publica: “Métodos matemáticos de organización y planificación de la producción”. En esta obra se engloba una serie de problemas de producción y distribución con una teoría matemática precisa y bien definida. Esta obra no se dio a conocer hasta 20 años después.
+
+## 1942-
+
+Tjallining Koopmans trabajando como estadístico en el puerto de Washington trató de determinar los planes de embarque al mínimo coste total, conociendo de antemano la disponibilidad y demanda de cada puerto. 
+
+
+## 1946- 
+George Joseph Stigler publica “Los costes de la Subsistencia” donde formula y resuelve el problema lineal de régimen alimenticio óptimo (Problema de la Dieta), para solventar la preocupación del ejército americano por asegurar a sus tropas unos requisitos nutricionales al menor coste posible. 
+
+
+## 1947- 
+George Bernard Dantzing, trabajando como experto en métodos de planificación para las fuerzas aéreas norteamericanas, formula el enunciado general al que se reduce cualquier problema lineal y desarrolla un método iterativo y muy eficaz de resolución, llamado “Método del Simplex”. 
+
+
+## 1947- 
+John Von Neumann establece los fundamentos matemáticos de la Programación Lineal, al relacionar ésta con la teoría de matrices de su famosa teoría de juegos, que años antes había publicado junto con Oscar Morgenstern en el libro “Theory of Games and Economic Behavior (1944)”.
+
+
+# Problema de la Dieta:
+
+## Planteamiento del problema:
+
+Para este tipo de problemas se tendra un modelo muy similar en todos los casos, donde las variables serán
+$x=(x_1,...,x_n)$ que especificara la cantidad de aliemento, este podrá ser en cuanto a contenido energetico, calorico, proteico, etc.
+$b=(b1,...,bm)$ el vector de recursos, representará cantidades nutricionales restringidas o cantidades de alimentos restringidos.
+Ob la función objetivo que puede maximizar o minimizar el objetivo deseado puede ser costos, contenido energetico, calorico, proteico, etc.
+Por lo cual el modelo resulta de la siguiente manera:
+
+$$\begin{align*}
+minimizar/maximizar    & c_1x_1+...+c_nx_n & \\
+&  & \\
+Sujeto \ a
+& a_{11}x_1+...+a_{1n}x_n & \geq b_1 \\
+& ... \\
+& a_{m1}x_1+...+a_{mn}x_n & \geq b_m \\
+& x_1,...,x_n \geq 0
+\end{align*}  $$
+
+### Ejemplo de problema:
+<p><br />&nbsp;</p><table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto; text-align: center;"><tbody><tr><td style="text-align: center;"><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEheQKTH168ZGoNppVk7xiUQsJgWgBXpmJByJKJcyw7vnHOBrUGTzeJNXl88LuvUqWzpJovjduG0CHDlnjOPPpR4R4MUnmkKCuUjKwAPb-v27WhdCgzwZWzT0Pffq7q-8HlO24f3vpQ1ZC9dLFLIZn0yfLtiJ7Uwib3IHecmDe6rGWPjOL2X4e5c3gku/s926/Tabla%201.png" style="margin-left: auto; margin-right: auto;"><img border="0" data-original-height="145" data-original-width="926" height="134" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEheQKTH168ZGoNppVk7xiUQsJgWgBXpmJByJKJcyw7vnHOBrUGTzeJNXl88LuvUqWzpJovjduG0CHDlnjOPPpR4R4MUnmkKCuUjKwAPb-v27WhdCgzwZWzT0Pffq7q-8HlO24f3vpQ1ZC9dLFLIZn0yfLtiJ7Uwib3IHecmDe6rGWPjOL2X4e5c3gku/w855-h134/Tabla%201.png" width="855" /></a></td></tr><tr><td class="tr-caption" style="text-align: center;"></td></tr></tbody></table><p></p>
+
+Se desea proponer una dieta para una persona de entre 19 a 50 años que contenga al menos 2,500 kcal, al menos 136 gramos de proteina y 1000mg de calcio. Adicionalmete para garantizar cierta variedad en la dieta se establece limites de porciones por día en los alimentos. Con esta información se requiere encontrar la dieta que contenga al menor costo asociado y permita satisfacer los requerimientos anteriores.
+
+
+
+$$\begin{align*}
+min: 2.15x1+21.12x2+6.80x3+6x4+12.87x5+10.88x6\\
+s.a: 110x1+205x2+160x3+160x4+420x5+260x6 >=2,000\\
+       4x1+ 32x2+ 13x3+ 8x4+   4x5+ 14x6 >=55\\
+       2x1+ 12x2+ 54x3+285x4+ 22x5+ 80x6 >=800\\
+      x1 <=4; x2<=3; x3<=2; x4<=8; x5<=2; x6<=2\\
+      x1,x2,x3,x4,x5,x6 >=0.\\
+\end{align*}$$
+
+```{r}
+#istall.packages("lpSolve")
+library(lpSolve)
+```
+```{r}
+#Datos 
+mat.rest <- matrix(c(110, 205, 160,160,420,260,
+                     4, 32, 13, 8, 4, 14,
+                     2,12,54,285,22,80,
+                     1,0,0,0,0,0,
+                     0,1,0,0,0,0,
+                     0,0,1,0,0,0,
+                     0,0,0,1,0,0,
+                     0,0,0,0,1,0,
+                     0,0,0,0,0,1),nrow=9, byrow =TRUE)
+mat.rest 
+b <- c(2500,136,1000,4,3,2,8,2,2)
+ob <- c(2.15,21.12,6.80,6,12.87,10.88)
+dir.rest <- c(">=",">=",">=","<=","<=","<=","<=","<=","<=")
+
+sol <- lp(direction = "min", objective.in = ob,
+          const.mat=mat.rest, const.dir = dir.rest,
+          const.rhs = b)
+sol
+```
+```{r}
+# vertice 
+ver <- sol$solution
+ver
+```
+
+```{r}
+# valor objetivo z
+z <- sol$objval
+z
+```
+```{r}
+solsens <- lp(direction = "min", objective.in = ob,
+              const.mat=mat.rest, const.dir = dir.rest,
+              const.rhs = b,compute.sens = TRUE)
+solsens$compute.sens 
+```
+Llegando a la conclusión de que el costo minimo que podria gastar la persona en esta dieta seria de $92.57 donde las porciones que comeria de cada alimento en el dia serian las siguientes:  4 porciones de avena, .24 porcion de pollo, 2 porciones de huevo, 8 porciones de leche entera, 0 porciones de pan integral y 1.5 porciones de frijol. 
+
+
+# Problema de Mezclas:
+
+## Planteamiento del problema: 
+
+Para este tipo de problemas se tendra un modelo, donde las variables serán:
+$i=(A,B,C,D,E)$ que especificara las bebidas,
+$j=(1,..,6)$= al tipo de fruta a preparar, 
+$X(i)$= a la cantidad de galones de bebida a preparar,
+$ver$ = Cantidad de galones de bebida a preprar 
+Por lo cual el modelo resulta de la siguiente manera:
+\begin{align*}
+minimizar/maximizar    \sum\nolimits_{i=1}^5 X(i)*Costo(i) \\
+s.a: \\
+\sum\nolimits_{i=1}^5 X(i)= Total de galones\\
+Total de galones >=500\\
+\forall\jmath \\
+\sum\nolimits_{i=1}^5*cantidad porcentual(i,j)>=min porcentual* total de galones\\
+ \forall\imath \\
+ X(i)<=stock(i)\\
+
+\end{align*}  
+
+### Ejemplo de problema:
+
+<div class="separator" style="clear: both;"><a href="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiAWgJFjVR5cx_7ubDOTqoV-VUpWpLRO2cHqEPuvFLWTaWK4v2x0PBNs2J1K6iSAVlO86k3sJvbZgGJxFEdL0uyItud-6KdFoqzvVqbEepvGPTLrAkpzYnnRjvnV0aTTipc2y_PXFrAjHvAgNnt0B_KHcgapHK7hzWBweBEo2DUIHg9qtq5BAC4UfTM/s1600/Tabla%202%20.png" style="display: block; padding: 1em 0; text-align: center; "><img alt="" border="0" data-original-height="126" data-original-width="905" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiAWgJFjVR5cx_7ubDOTqoV-VUpWpLRO2cHqEPuvFLWTaWK4v2x0PBNs2J1K6iSAVlO86k3sJvbZgGJxFEdL0uyItud-6KdFoqzvVqbEepvGPTLrAkpzYnnRjvnV0aTTipc2y_PXFrAjHvAgNnt0B_KHcgapHK7hzWBweBEo2DUIHg9qtq5BAC4UfTM/s1600/Tabla%202%20.png"/></a></div>
+
+Una empresa de bebidas debe preparar, a partir de 5 tipos de bebidas de frutas disponibles en almacén, al menos 500 galones conteniendo por lo menos 20% de jugo de naranja, 10% de Uva, 5% de mandarina, 20% de mango, 15% dedurazno y 30% de fresa. Los datos referentes al stock de las bebidas son mostrados en la anterior tabla, ¿Cuánto de cada una de las bebidas, la empresa debe utilizar de forma que obtenga la composición requerida a un costo mínimo? 
+
+$$\begin{align*}
+min: 48000x1,96000x2,24000x3,12000x4,192000x5\\
+s.a:   40x1, 05x2,90x3,0x4, 0x5 >= 20\\
+      40x1,10x2,15x3,70x4, 0x5 >=10\\
+       0x1,20x2, 0x3,10x4,10x5 >=5\\
+      20x1, 0x2, 0x3, 0x4,50x5 >=20\\
+       0x1,20x2,10x3, 0x4,30x5 >=15\\
+      10x1, 0x2,20x3,20x4, 0x5 >=30\\
+      x1<=200,x2<=400,x3<=100,x4<=50,x5<=800\\
+      x1,x2,x3,x4,x5>=500.\\
+\end{align*}$$
+```{r}
+#Datos 
+mat.rest <- matrix(c(1,1,1,1,1,
+                     40,5,90,0,0,
+                     40,10,15,70,0,
+                     0,20,0,10,10,
+                     20,0,0,0,50,
+                     0,20,10,0,30,
+                     10,0,20,20,0,
+                     1,0,0,0,0,
+                     0,1,0,0,0,
+                     0,0,1,0,0,
+                     0,0,0,1,0,
+                     0,0,0,0,1),nrow=12, byrow =TRUE)
+mat.rest 
+b <- c(500,20,10,5,20,15,30,200,400,100,50,800)
+ob <- c(48000,96000,24000,12000,192000)
+dir.rest <- c(">=",">=",">=",">=",">=",">=",">=","<=","<=","<=","<=","<=")
+
+sol <- lp(direction = "min", objective.in = ob,
+          const.mat=mat.rest, const.dir = dir.rest,
+          const.rhs = b)
+sol
+```
+
+```{r}
+# vertice 
+ver <- sol$solution
+ver
+```
+
+```{r}
+# valor objetivo z
+z <- sol$objval
+z
+```
+
+```{r}
+solsens <- lp(direction = "min", objective.in = ob,
+              const.mat=mat.rest, const.dir = dir.rest,
+              const.rhs = b,compute.sens = TRUE)
+solsens$compute.sens 
+```
+En conclusión debe utilizar 200 galones de la bebida A, 150 de la B, 100 de la C, 50 de la D y 0 de la bebida E, con el mínimo costo de $27,000,000 (veintisiete millones de pesos mexicanos).  

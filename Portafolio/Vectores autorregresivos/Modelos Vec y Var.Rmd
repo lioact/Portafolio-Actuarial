@@ -1,0 +1,479 @@
+---
+title: "Proyecto final"
+author: ""
+date: "2024-11-25"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Econometría 2 
+## Proyecto final
+
+###  Integrantes
+
+Martha Lizeth Pastrana Basilio
+
+Leonardo Daniel Rosas Rios
+
+José Domingo Sandria Cortés 
+
+## Introducción
+
+Este proyecto se hace con el objetivo de realizar un modelo que pueda modelar e incluso predecir el comportamiento futuro de las acciones la compañía Volkswagen. Para este proyecto se planea generar un módelo de autoregresión que pueda modelar los rendimientos futuros de la compañía, así como también generar un módelo que tome en cuenta acciónes de BYD, que es una empresa de autos China que en años recientes (especialmente desde su llegada al territorio mexicano), ha sido una competidora muy grande para la marca Volkswagen. 
+ 
+
+## Librerias que usaremos:
+
+
+```{r}
+library(dplyr)
+library(forecast)
+library(rugarch)
+library(quantmod)
+library(vars)
+library(tseries)
+library(FinTS) 
+library(dynlm)
+library(knitr)
+```
+
+
+## Información
+
+
+Como ya se dijo anteriormente las acciones que tomaremos en cuenta en este trabajo son de dos compañias del sector automotriz, Volkswagen y BYD, para ambas acciones buscaremos la información de yahoo finance, y tomaremos en cuenta el valor de cotización en EE.UU. con el objetivo de evitar sesgos en la infomación:
+
+```{r}
+# Datos de Volkswagen
+getSymbols("VWAGY", src = "yahoo", from = "2020-01-01", to = "2024-09-15")
+# Datos de BYD
+getSymbols("BYDDY", src = "yahoo", from = "2020-01-01", to = "2024-09-15")
+
+# Convertir a data frame los datos de Volkswagen
+v1 <- data.frame(
+  Date = index(VWAGY), 
+  Volkswagen = as.numeric(VWAGY$VWAGY.Close) # Convertir a numérico
+)
+# Convertir a data frame los datos de BYD
+b1 <- data.frame(
+  Date = index(BYDDY), 
+  BYD = as.numeric(BYDDY$BYDDY.Close) # Convertir a numérico
+)
+
+# Unir ambas bases de datos por la columna Date
+Datos <- merge(v1, b1, by = "Date", all = TRUE) # Unión completa
+
+# Verificar el resultado
+head(Datos)
+
+
+```
+
+# Modelo 1: GARCH
+
+## ¿Cuál es el objetivo específico del modelo? 
+
+El modelo GARCH tiene como objetivo modelar y predecir la volatilidad de los rendimientos de las acciones de Volkswagen a corto plazo, en particular, capturar y predecir la variabilidad futura (o volatilidad) de los rendimientos de estas acciones, lo cual es crucial para los inversionistas y analistas que deseen evaluar el riesgo de la inversión en las acciones de la compañía.
+
+Dado que los mercados financieros, especialmente en industrias competitivas como la automotriz, están sujetos a fluctuaciones inesperadas, el modelo GARCH revu permite estimar la volatilidad condicional, es decir, la variabilidad en los rendimientos de las acciones en función de las observaciones pasadas, lo que ayuda a prever los posibles cambios en los precios de las acciones de Volkswagen.
+
+Sabemos que los modelos GARCH son herramientas poderosas para analizar y predecir la volatilidad en los mercados financieros es por eso que para poder llegar a nuestro modelo ideal vamos a seguir una serie de pasos que nos ayudarán en este proceso
+
+
+
+
+## Proceso de elección de variables
+
+Primero obtenemos los rendimientos de nuestros precios, pero ¿Por qué usamos los rendimientos? Bueno, los rendimientos permiten modelar mejor la volatilidad y las fluctuaciones en los precios a lo largo del tiempo.Los precios de los activos financieros (acciones, bonos, etc.) suelen mostrar una tendencia creciente o decreciente a lo largo del tiempo. Trabajar con precios directamente puede generar problemas de no estacionariedad. Al calcular rendimientos, transformamos la serie en una serie estacionaria, que es una condición esencial para aplicar modelos como el ARCH.
+
+```{r}
+Datos$Returns <- c(NA, diff(Datos$Volkswagen) / head(Datos$Volkswagen, -1))
+```
+
+
+
+
+```{r}
+plot(Datos$Date, Datos$Returns, type = "l", col = "blue",
+     main = "Rendimientos Diarios de Volkswagen",
+     xlab = "Fecha", ylab = "Rendimientos")
+```
+
+## Generación del modelo poblacional: ¿Cuáles son los signos que se esperan? ¿Cuáles las  magnitudes? 
+El modelo GARCH aplicado a los rendimientos de las acciones de Volkswagen generará pronósticos sobre la volatilidad futura, y se espera que los coeficientes $\alpha_1$ y $\beta_1$ sean positivos. Las magnitudes de estos coeficientes, reflejan la relación entre la volatilidad pasada y futura, así como la sensibilidad de la volatilidad a los choques previos. Estos resultados ayudarán a comprender mejor la incertidumbre futura en los rendimientos de las acciones de Volkswagen y proporcionarán una medida clave de riesgo para los inversionistas.
+
+### Paso 1: Estimar tu modelo
+Generamos un modelo Auto.ARIMA para poder obtener los residuos de nuestro modelo, y a partir de ahi poder llegar al modelo de interés en este caso, un modelo ARCH o GARCH según sea el caso, entonces para poder obtener rapidamente los residuales generamos un autoarima 
+
+
+```{r}
+modelo <- auto.arima(Datos$Returns)
+summary(modelo)
+
+```
+Entonces nuestro modelo quedaria de la siguiente manera
+
+$$
+\text{Retornos}_t = 
+0.5148 \cdot \text{Retorno}_{t-1} 
+- 0.9578 \cdot \text{Retorno}_{t-2} 
+- 0.5404 \cdot \varepsilon_{t-1} 
++ 0.9398 \cdot \varepsilon_{t-2} 
++ \varepsilon_t
+$$
+### Paso 2: Calcular los residuales al cuadrado
+
+Obtenemos los residuales de nuestro ARIMA(2,0,2)  y los elevamos al cuadrado 
+
+```{r}
+# Calcular los residuales del modelo
+residuales <- residuals(modelo)
+
+# Calcular los residuales al cuadrado
+residuales_cuadrados <- residuales^2
+```
+
+Generamos un gráfico para poder observar estos residuales 
+
+```{r}
+plot(Datos$Date[-1], residuales_cuadrados, type = "l", col = "blue",
+     main = "Residuales al Cuadrado del Modelo ARIMA",
+     xlab = "Fecha", ylab = "Residuales al Cuadrado")
+```
+
+Como podemos ver los residuales no son constantes, es decir que podemos observar que la varianza es heterosedastica 
+
+
+
+### Paso 3: Hacer una regresión con los residuales al cuadrado rezagados 
+
+Para esta regresión  nuestra variable dependiente serán residuales al cuadrado y la independiente los residuales al cuadrado con un rezago
+
+```{r}
+RRescuad <- dynlm(residuales ~ L(residuales_cuadrados), data = Datos)
+summary(RRescuad)
+```
+De este modelo podemos ver que tenemos un coeficiente significativo ($p$<0.01) esto sugiere que los errores al cuadrado (varianza) tienen dependencia temporal.
+
+La dependencia en la varianza es una señal clásica de que un modelo ARCH o GARCH sería más apropiado para capturar este comportamientos, entonces generamos una prueba ARCH 
+
+
+
+```{r}
+arch_test <- ArchTest(residuales, lags = 1)  # Puedes probar otros lags, como 5 o 10
+print(arch_test)
+```
+Como podemos ver nuestro p- valor es menor a 0.05 lo que nos indica que se rechaza la hipostesis nula  lo que nos lleva a concluir que la serie tiene efectos ARCH y asi generamos nuestro modelo ARCH 
+
+### Paso 4: Ajustar el modelo ARCH
+
+```{r}
+# Ajustar un modelo ARCH(1)
+arch_model <- garch(residuales, order = c(0, 1))
+
+# Mostrar el resumen del modelo
+summary(arch_model)
+
+```
+
+ 
+
+## Validez del modelo 
+
+Ambos coeficientes, $a_0$ y $a_1$, tienen un p-valor menor que $2\times10^{-16}$, lo que significa que son altamente significativos. Esto indica que el modelo ARCH(1) es adecuado para explicar la variabilidad de la serie.
+
+Las pruebas que muestra el summary son las siguientes 
+
+**Jarque-Bera Test:**
+X-squared = 292.52, p-value < 2.2e-16  
+Este test evalúa si los residuales tienen una distribución normal. El p-valor extremadamente bajo indica que los residuales no siguen una distribución normal, lo que es común en los modelos financieros y en series temporales que muestran heterocedasticidad (volatilidad variable).
+   
+**Box-Ljung Test (para los residuales al cuadrado):**
+X-squared = 2.1701, p-value = 0.1407  
+Este test evalúa si los residuales al cuadrado muestran autocorrelación. Un p-valor de 0.1407 es relativamente alto, lo que indica que no hay evidencia de autocorrelación significativa en los residuales al cuadrado, lo que sugiere que no hay patrones adicionales en la varianza.
+
+
+Es decir el modelo ARCH(1) o GARCH(0,1) ha mostrado ser adecuado para modelar la volatilidad en los datos, dado que el coeficiente ARCH es significativo y los residuos parecen no presentar autocorrelación significativa
+
+
+
+### Paso 5: Ajustar el modelo GARCH
+
+
+```{r}
+
+
+# Ajustar un modelo GARCH(1,1) usando los residuales
+garch_model <- garch(residuales, order = c(1, 1))
+
+# Mostrar el resumen del modelo GARCH(1,1)
+summary(garch_model)
+
+
+```
+
+
+Dado estos resultados para el modelo GARCH(1,1), el p-value es muy alto $0.8815$, lo que indica que no hay evidencia de autocorrelación en los residuos al cuadrado. Esto sugiere que el modelo captura adecuadamente la heterocedasticidad. En el modelo ARCH(1), aunque el p-value también es mayor que $0.05$ (no hay evidencia fuerte de autocorrelación), el valor dep es considerablemente menor que en el modelo GARCH, por lo que nuestro modelo GARCH(1,1) parece brindarnos un mejor ajuste a nuestros datos
+
+## Resultados
+Ahora dado que usamos una forma más teorica y menos apegada a las librerias para ajustar nuestro modelo y poder tener la información para  hacer la comparación, entonces generamos el ajuste de nuestro modelo dadas las librerias que pueden usar forecast para poder hacer nuestras predicciones 
+
+
+```{r}
+# Especificar el modelo GARCH(1,1) (ajustado previamente)
+garchSpec <- ugarchspec(
+  variance.model = list(model = "sGARCH", garchOrder = c(1, 1)),
+  mean.model = list(armaOrder = c(2, 2)),  # Ajusta según tu modelo base
+  distribution.model = "std"               # Distribución t-Student
+)
+
+# Ajustar el modelo GARCH(1,1) a los datos
+garchFit <- ugarchfit(spec = garchSpec, data = VWAGY$VWAGY.Close)
+
+# Realizar un pronóstico de 5 días
+garchForecast <- ugarchforecast(garchFit, n.ahead = 5)
+
+# Mostrar el pronóstico de la media y la varianza condicional
+garchForecast
+
+# Extraer y graficar los valores pronosticados
+predicted_mean <- as.numeric(fitted(garchForecast))      # Pronóstico de la media
+predicted_variance <- as.numeric(sigma(garchForecast)^2) # Varianza condicional pronosticada
+
+# Imprimir los resultados
+data.frame(Day = 1:5, Mean = predicted_mean, Variance = predicted_variance)
+
+
+```
+
+Los resultados generados por el modelo GARCH(1,1) para pronosticar la volatilidad de los rendimientos de las acciones de Volkswagen para los próximos 5 días muestran una tendencia de ligero aumento en la volatilidad esperada a medida que avanzan los días.
+La volatilidad creciente podría ser indicativa de un aumento en la incertidumbre en los rendimientos futuros de la acción, lo que puede reflejar la expectativa de eventos o movimientos importantes en el mercado que afecten a la empresa (como noticias económicas, políticas o resultados financieros). A pesar de este incremento, los niveles de volatilidad no parecen ser excesivamente altos, lo que sugiere que, aunque existe incertidumbre, no hay una alta especulación o riesgo extremo a corto plazo.
+
+### Conclusión GARCH
+
+Este pronóstico es útil para los inversores que deseen evaluar el riesgo o la incertidumbre asociada a la acción de Volkswagen en el corto plazo. Aunque no se está pronosticando un cambio drástico en la volatilidad, el leve aumento en los días siguientes puede señalar que se espera algo de fluctuación en los precios, lo que es relevante para la toma de decisiones en cuanto a estrategias de cobertura o asignación de capital.
+
+Es importante considerar estos resultados en conjunto con otros indicadores fundamentales y técnicos para obtener una visión más completa del riesgo y comportamiento esperado de la acción en el futuro cercano.
+
+
+## Diagrama de flujo
+
+```{r}
+include_graphics("C:/Users/leo_m/OneDrive - Benemérita Universidad Autónoma de Puebla/Universidad/8° semestre/Econometria 2/Proyecto final/Diagrama 1.png")
+
+```
+
+# Modelo 2: Series de Tiempo para dos variables
+
+## ¿Habrá relación entre las acciones de Volkswagen y BYD?
+
+### Paso 1: Declarar como series de tiempo
+
+```{r}
+#Declaramos como serie de tiempo
+Datos <- ts(Datos, start = c(2020,1),
+                 end = c(2024, 4), frequency = 4)
+#Gráfico de ambas series
+ts.plot(Datos[,"Volkswagen"], Datos[,"BYD"], type="l",
+        lty=c(1,2), col=c(1,2))
+legend("topleft", border = NULL, legend=c("Volkswagen", "BYD"),
+       lty=c(1,2), col=c(1,2))
+```
+
+### Paso 2: Analizar estacionariedad con ACF y pruebas ADF
+
+En el gráfico podemos observar que tal vez las series no sean cointegradas, entonces hacemos las pruebas necesarias.
+
+```{r}
+#Vemos si los rezagos son relevantes y estacionarios
+acf(Datos[,"Volkswagen"])
+acf(Datos[,"BYD"])
+#Prueba estacionareidad para v.acumuladas
+adf.test(Datos[,"Volkswagen"])
+adf.test(Datos[,"BYD"])
+# Aqui notamos que ambas series no son estacionarias (valores p > 0.05) entonces diferenciamos y hacemos la misma prueba.
+
+#Prueba estacionareidad para v.diferenciadas
+adf.test(diff(Datos[,"Volkswagen"]))
+adf.test(diff(Datos[,"BYD"]))
+
+#Siguen sin ser estacionarias
+
+#Podemos probar tambien si son I(1) (ndiffs)
+ndiffs(Datos[,"Volkswagen"])
+ndiffs(Datos[,"BYD"])
+```
+
+
+### Paso 3: Verificar cointegración
+
+```{r}
+#Cointegración
+coincy <- dynlm(Volkswagen~BYD, data = Datos)
+ehat <- resid(coincy)
+dehat <- diff(ehat)
+acf(ehat)
+acf(dehat)
+mer.c <- dynlm(dehat~L(ehat,1)+L(dehat)-1)
+summary(mer.c)
+```
+
+Los errores no son estacionarios.
+Notamos que no hay cointegración ya que tenemos un p-value: 0.8196 > 0.05.
+
+No hay estacionareidad ni cointegración por lo que la relación entre Volkswagen~BYD puede que sea espuria.
+
+### Paso 4: Generar modelo VAR
+
+Diferenciamos las series para eliminar las tendencias y convertirlas en estacionarias.
+```{r}
+#Usamos las diferencias 
+DV <- diff(Datos[,"Volkswagen"])
+DB <- diff(Datos[,"BYD"])
+```
+
+Al diferenciar las series, perdemos información de las relaciones de largo plazo, pero podemos analizar las relaciones de corto plazo.
+
+Procedemos con un modelo VAR:
+
+(El modelo VAR es el que mejor se adapta por la naturaleza de nuestras series) 
+
+Trabajamos un modelo VAR con variables $({\Delta V_t},{\Delta B_t})$ de orden I(1), nos restringimos a orden uno de los rezagos.
+
+### Paso 5: Ajustar el modelo VAR
+
+```{r}
+varmatriz <- as.matrix(cbind(DV,DB)) #Matriz de dif
+varfit <- VAR(varmatriz) #"VAR()" from package "vars"
+summary(varfit)
+```
+Summary (Modelo VAR):
+
+*Las variables que el modelo intenta explicar son DV y DB.
+*Se incluye un término constante.
+*El modelo utiliza 18 observaciones para la estimación.
+*Modelo estable.
+ 
+$DV = DV.l1 + DB.l1 + const$ 
+Esta ecuación describe cómo DV  depende de:
+Su propio rezago, el rezago de la otra variable endógena y un término constante.
+
+## Interpretación de los Coeficientes:
+
+Ningún coeficiente es significativo, si observamos los p-valores
+Conclusión: No hay evidencia de que los rezagos de DV o DB expliquen significativamente la evolución de DV.
+
+Rendimiento General del Modelo:o a 
+R² = 0.0498: Solo el 4.98% de la variación en DV es explicada por el modelo.
+Adjusted R²: Ajustado por el número de variables, es negativo, indica un mal ajuste.
+F-statistic (p = 0.6817): No hay evidencia de que el modelo sea globalmente significativo.
+
+$DV = DV.l1 + DB.l1 + const$ 
+Esta ecuación describe cómo DB depende de:
+El rezago de DV,su propio rezago y un término constante.
+
+Interpretación de los Coeficientes:
+
+DV.l1: Coeficiente 0.9644 es estadísticamente significativo ($p$=0.0477).
+Esto indica que los valores pasados de DV tienen un impacto positivo y significativo en DB.
+El otro coeficiente no es significativo.
+Conclusión: Solo el rezago de DV tiene un efecto significativo sobre DB.
+
+### Rendimiento General del Modelo:
+R² = 0.249: El modelo explica el 24.9% de la variación en DB.
+Adjusted R² = 0.1489: El ajuste mejoró al incluir el efecto de los rezagos.
+F-statistic (p = 0.1167): No es significativo globalmente 
+
+### Matrices de Residuos
+Covariance matrix: Representa la covarianza entre los residuos de las ecuaciones de DV y DB.
+Correlation matrix: Los residuos de las dos ecuaciones tienen una correlación baja, lo cual indica que no están altamente relacionados.
+
+### Del Modelo VAR
+Ecuación para DV: No hay evidencia de que los rezagos de DV o DB expliquen significativamente la evolución de DV.
+Ecuación para DB: Hay evidencia de que el rezago de DV tiene un efecto significativo sobre DB.
+Rendimiento Global del Modelo:
+
+Las ecuaciones explican poca variación en las series (R² bajos).
+La significancia global del modelo no es fuerte. 
+
+### Relación entre las Variables:
+
+La relación entre DV y DB no es completamente espuria, ya que el rezago de DV tiene un impacto significativo en DB.
+
+$$
+\begin{aligned}
+\widehat{\Delta V_t} & = -0.0449 + 0.1237\Delta V_{t-1} + 0.0727\Delta B_{t-1} \\
+\widehat{\Delta B_t} & = 0.1198 + 0.9644\Delta V_{t-1} - 0.2036\Delta B_{t-1}
+\end{aligned}
+$$
+
+
+Los resultados del modelo VAR tienen más sentido si analizamos los gráficos de impulso-respuesta.
+
+```{r}
+library(vars)
+impresp <- irf(varfit)
+plot(impresp)
+```
+
+
+FDV : Estima la contribución del shock en cada variable de respuesta en ambas variables.
+```{r}
+plot(fevd(varfit))
+```
+## Diagrama de flujo
+
+```{r}
+include_graphics("C:\\Users\\leo_m\\OneDrive - Benemérita Universidad Autónoma de Puebla\\Universidad\\8° semestre\\Econometria 2\\Proyecto final\\Diagrama 2.jpeg")
+
+```
+
+
+
+
+## Conclusiones Modelo VAR
+
+Con base a los resultados obtuvimos los siguientes puntos:
+
+*El análisis sugiere que los valores rezagados de Volkswagen tienen un impacto significativo sobre los valores actuales de BYD, mientras que no se observa un impacto significativo en la dirección opuesta.
+
+*Esto implica que los valores pasados del precio de cierre de las acciones de Volkswagen tienen un efecto positivo y relevante sobre los precios actuales de las acciones de BYD.
+
+*Este efecto puede interpretarse como que los movimientos en los precios de Volkswagen pueden servir como un indicador o referencia para los movimientos en los precios de BYD.
+
+*Volkswagen es una empresa mucho más grande y consolidada en comparación con BYD. Los movimientos en BYD pueden no ser suficientemente relevantes para influir significativamente en las acciones de Volkswagen.
+
+*La relación no es completamente espuria porque se identificó un impacto significativo de los valores rezagados de Volkswagen sobre BYD.Esto sugiere una conexión real entre ambas series, posiblemente explicada por su interacción dentro del sector automotriz y las expectativas de mercado.
+
+Sin embargo, la relación no es bidireccional. Los precios de BYD no influyen significativamente en los de Volkswagen, lo que refuerza la idea de que la influencia ocurre principalmente desde una empresa más global y establecida hacia otra más específica y de crecimiento regional.
+
+
+
+
+
+
+
+
+
+
+
+# Bibliografía
+
+1. Hill, R. C., Griffiths, W. E., & Lim, G. C. (2017). *Principles of Econometrics* (5th ed.). Wiley.
+
+2. Gujarati, D. N., & Porter, D. C. (2010). *Econometría* (5ta ed.). McGraw-Hill.
+
+1. Curso de R Studio. (n.d.). *Modelos ARCH en Rstudio | ARCH Test*. [Video]. YouTube.  
+   [https://www.youtube.com/watch?v=DEjp1y-Gnjo](https://www.youtube.com/watch?v=DEjp1y-Gnjo)
+
+2. Curso de R Studio. (n.d.). *Modelos GARCH Univariados en Rstudio*. [Video]. YouTube.  
+   [https://www.youtube.com/watch?v=9zuj7gqENBs](https://www.youtube.com/watch?v=9zuj7gqENBs)
+
+
+3. Magnus Nordmo. (2020, 24 de noviembre). Plotting the predictions of a mixed model as a line in R. Stack Overflow. https://stackoverflow.com/questions/23516267/fit-a-garch-model-to-time-series-from-log-returns-error-attribut-names-36
+
+4. Oliver. (2018, 5 de septiembre). Threshold linear regression model. Stack Overflow. https://stackoverflow.com/questions/52225199
+
+
+
